@@ -1,15 +1,15 @@
 #include "game-of-life.h"
 
-#define WIDTH 900
-#define HEIGHT 600
-#define CELL_SIZE 15
 #define LINE_WIDTH 2
 
-#define ROWS HEIGHT / CELL_SIZE
-#define COLS WIDTH / CELL_SIZE
+#define WIDTH 900
+#define HEIGHT 600
 
-#define DRAW_GRID draw_grid(surface)
-#define DRAW_PREVIEW(x, y, color) draw_preview(surface, x, y, color)
+#define ROWS 40
+#define COLS 60
+
+#define DRAW_GRID draw_grid(surface, width, height, cell_size)
+#define DRAW_PREVIEW(x, y, color) draw_preview(surface, x, y, cell_size, color)
 #define DRAW_CELL(x, y, color) draw_cell(surface, x, y, color)
 #define CLEAR_CELL(x, y) clear_cell(surface, x, y)
 
@@ -19,44 +19,44 @@
 #define YELLOW_TRANSPARENT 0x96ffff00
 #define GRID_COLOR 0x1f1f1f
 
-void draw_grid(SDL_Surface *surface)
+void draw_grid(SDL_Surface *surface, int width, int height, int cell_size)
 {
-  SDL_Rect horizontal_line = {0, 0, WIDTH, LINE_WIDTH};
-  for (horizontal_line.y = 0; horizontal_line.y < HEIGHT; horizontal_line.y += CELL_SIZE)
+  SDL_Rect horizontal_line = {0, 0, width, LINE_WIDTH};
+  for (horizontal_line.y = 0; horizontal_line.y < height; horizontal_line.y += cell_size)
     SDL_FillSurfaceRect(surface, &horizontal_line, GRID_COLOR);
 
-  SDL_Rect vertical_line = {0, 0, LINE_WIDTH, HEIGHT};
-  for (vertical_line.x = 0; vertical_line.x < WIDTH; vertical_line.x += CELL_SIZE)
+  SDL_Rect vertical_line = {0, 0, LINE_WIDTH, height};
+  for (vertical_line.x = 0; vertical_line.x < width; vertical_line.x += cell_size)
     SDL_FillSurfaceRect(surface, &vertical_line, GRID_COLOR);
 }
 
-void draw_preview(SDL_Surface *surface, int x, int y, Uint32 color)
+void draw_preview(SDL_Surface *surface, int x, int y, int cell_size, Uint32 color)
 {
-  SDL_Rect preview = {x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE};
+  SDL_Rect preview = {x * cell_size, y * cell_size, cell_size, cell_size};
 
   SDL_FillSurfaceRect(surface, &preview, color);
 }
 
-void draw_cell(SDL_Surface *surface, int x, int y, Uint32 color)
+void draw_cell(SDL_Surface *surface, int x, int y, int cell_size, Uint32 color)
 {
-  SDL_Rect cell = {x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE};
+  SDL_Rect cell = {x * cell_size, y * cell_size, cell_size, cell_size};
   SDL_FillSurfaceRect(surface, &cell, color);
 }
 
-void clear_cell(SDL_Surface *surface, int x, int y)
+void clear_cell(SDL_Surface *surface, int x, int y, int cell_size)
 {
-  SDL_Rect cell = {x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE};
+  SDL_Rect cell = {x * cell_size, y * cell_size, cell_size, cell_size};
   SDL_FillSurfaceRect(surface, &cell, BLACK);
 }
 
-void render_cells(SDL_Surface *surface, int cells[COLS][ROWS])
+void render_cells(SDL_Surface *surface, int cell_size, int cells[COLS][ROWS])
 {
   for (int x = 0; x < COLS; x++)
   {
     for (int y = 0; y < ROWS; y++)
     {
       if (cells[x][y] == 1) // alive
-        draw_cell(surface, x, y, WHITE);
+        draw_cell(surface, x, y, cell_size, WHITE);
     }
   }
 }
@@ -105,7 +105,7 @@ void step_simulation(int cells[COLS][ROWS])
     }
   }
 
-  // copy back with the remaining dead cells
+  // copy back with the remaining dead cells (death if too many surrounding cells surpopulation)
   for (int x = 0; x < COLS; x++)
     for (int y = 0; y < ROWS; y++)
       cells[x][y] = next[x][y];
@@ -113,6 +113,11 @@ void step_simulation(int cells[COLS][ROWS])
 
 int main(int argc, char *argv[])
 {
+  int width = 900;
+  int height = 600;
+  int cell_size = 15;
+  int rows = height / cell_size;
+  int cols = width / cell_size;
   if (!SDL_Init(SDL_INIT_VIDEO))
   {
     printf("Failed to init video\n");
@@ -134,6 +139,7 @@ int main(int argc, char *argv[])
   int mouseX = -1, mouseY = -1;
 
   bool is_key_space_pressed = false;
+  bool is_key_f_pressed = false;
   while (game)
   {
     while (SDL_PollEvent(&event))
@@ -142,11 +148,33 @@ int main(int argc, char *argv[])
       {
         game = 0;
       }
+      if (event.type == SDL_EVENT_WINDOW_RESIZED)
+      {
+        SDL_GetWindowSize(window, &width, &height);
+        cell_size = (width / COLS < height / ROWS)
+                        ? width / COLS
+                        : height / ROWS;
+        surface = SDL_GetWindowSurface(window); // refresh surface after resize
+        printf("Window resized: %dx%d -> rows=%d, cols=%d\n", width, height, rows, cols);
+      }
       if (event.type == SDL_EVENT_KEY_DOWN)
       {
         if (event.key.key == SDLK_ESCAPE)
         {
           game = 0;
+        }
+
+        if (event.key.key == SDLK_F && !is_key_f_pressed)
+        {
+          SDL_MaximizeWindow(window);
+          SDL_GetWindowSize(window, &width, &height);
+          cell_size = (width / COLS < height / ROWS)
+                          ? width / COLS
+                          : height / ROWS;
+          surface = SDL_GetWindowSurface(window);
+
+          printf("Maximized: %dx%d -> cell_size=%d\n", width, height, cell_size);
+          is_key_f_pressed = true;
         }
 
         if (event.key.key == SDLK_SPACE && !is_key_space_pressed)
@@ -165,11 +193,15 @@ int main(int argc, char *argv[])
         {
           is_key_space_pressed = false;
         }
+        if (event.key.key == SDLK_F && is_key_f_pressed)
+        {
+          is_key_f_pressed = false;
+        }
       }
       if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && !is_running)
       {
-        int x = event.button.x / CELL_SIZE;
-        int y = event.button.y / CELL_SIZE;
+        int x = event.button.x / cell_size;
+        int y = event.button.y / cell_size;
         if (event.button.button == SDL_BUTTON_LEFT)
         {
           is_drawing = true;
@@ -192,8 +224,8 @@ int main(int argc, char *argv[])
       }
       if (event.type == SDL_EVENT_MOUSE_MOTION && !is_running)
       {
-        mouseX = event.button.x / CELL_SIZE;
-        mouseY = event.button.y / CELL_SIZE;
+        mouseX = event.button.x / cell_size;
+        mouseY = event.button.y / cell_size;
         if (is_drawing)
         {
           cells[mouseX][mouseY] = 1;
@@ -225,7 +257,7 @@ int main(int argc, char *argv[])
     SDL_ClearSurface(surface, 0, 0, 0, 255);
 
     // also render saved cells here
-    render_cells(surface, cells);
+    render_cells(surface, cell_size, cells);
     DRAW_GRID;
 
     if (is_preview && !is_running)

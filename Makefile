@@ -1,7 +1,7 @@
 all: build run
 
 build:
-	clang *.c -o game.exe -I "C:/SDL3/include" -L "C:/SDL3/lib/x64" -lSDL3
+	clang *.c -o game.exe -I "C:/SDL3/include" -L "C:/SDL3/lib/x64" -lSDL3 -lSDL3_ttf
 
 run:
 	./game.exe
