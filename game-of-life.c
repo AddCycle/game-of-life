@@ -132,6 +132,8 @@ int main(int argc, char *argv[])
   bool is_preview = false;
   bool is_running = false;
   int mouseX = -1, mouseY = -1;
+
+  bool is_key_space_pressed = false;
   while (game)
   {
     while (SDL_PollEvent(&event))
@@ -147,12 +149,24 @@ int main(int argc, char *argv[])
           game = 0;
         }
 
-        if (event.key.key == SDLK_SPACE)
+        if (event.key.key == SDLK_SPACE && !is_key_space_pressed)
         {
+          if (!is_running)
+            printf("starting simulation...\n");
+          else
+            printf("stopping simulation...\n");
+          is_key_space_pressed = true;
           is_running = !is_running;
         }
       }
-      if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)
+      if (event.type == SDL_EVENT_KEY_UP)
+      {
+        if (event.key.key == SDLK_SPACE && is_key_space_pressed)
+        {
+          is_key_space_pressed = false;
+        }
+      }
+      if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && !is_running)
       {
         int x = event.button.x / CELL_SIZE;
         int y = event.button.y / CELL_SIZE;
@@ -165,18 +179,18 @@ int main(int argc, char *argv[])
         if (event.button.button == SDL_BUTTON_RIGHT)
         {
           is_erasing = true;
-          cells[x][y] = 1; // mark dead
+          cells[x][y] = 0; // mark dead
           // printf("cell cleared at : x=%d,y=%d\n", x, y);
         }
       }
-      if (event.type == SDL_EVENT_MOUSE_BUTTON_UP)
+      if (event.type == SDL_EVENT_MOUSE_BUTTON_UP && !is_running)
       {
         if (event.button.button == SDL_BUTTON_LEFT)
           is_drawing = false;
         if (event.button.button == SDL_BUTTON_RIGHT)
           is_erasing = false;
       }
-      if (event.type == SDL_EVENT_MOUSE_MOTION)
+      if (event.type == SDL_EVENT_MOUSE_MOTION && !is_running)
       {
         mouseX = event.button.x / CELL_SIZE;
         mouseY = event.button.y / CELL_SIZE;
@@ -214,7 +228,7 @@ int main(int argc, char *argv[])
     render_cells(surface, cells);
     DRAW_GRID;
 
-    if (is_preview)
+    if (is_preview && !is_running)
     {
       DRAW_PREVIEW(mouseX, mouseY, YELLOW_TRANSPARENT);
     }
