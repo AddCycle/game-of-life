@@ -1,6 +1,7 @@
 {
   "files.associations": {
     "sdl.h": "c",
-    "ctime": "c"
+    "ctime": "c",
+    "game-of-life.h": "c"
   }
 }

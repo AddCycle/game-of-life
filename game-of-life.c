@@ -111,20 +111,71 @@ void step_simulation(int cells[COLS][ROWS])
       cells[x][y] = next[x][y];
 }
 
+int alive_cells(int cells[COLS][ROWS])
+{
+  int count = 0;
+  for (int i = 0; i < COLS; i++)
+  {
+    for (int j = 0; j < ROWS; j++)
+    {
+      if (cells[i][j])
+        count++;
+    }
+  }
+  return count;
+}
+
+void draw_text(SDL_Surface *target, TTF_Font *font, int x, int y, SDL_Color color, const char *fmt, ...)
+{
+  // Render to a surface
+  char buffer[256]; // posix paths max
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(buffer, sizeof(buffer), fmt, args);
+  va_end(args);
+
+  SDL_Surface *text_surf = TTF_RenderText_Blended(font, buffer, 0, color);
+  if (!text_surf)
+  {
+    printf("TTF_RenderUTF8_Blended: %s\n", SDL_GetError());
+    return;
+  }
+
+  SDL_Rect dest = {x, y, text_surf->w, text_surf->h};
+  SDL_BlitSurface(text_surf, NULL, target, &dest);
+
+  SDL_DestroySurface(text_surf); // cleanup temp surface
+}
+
 int main(int argc, char *argv[])
 {
-  int width = 900;
-  int height = 600;
+  int width;
+  int height;
   int cell_size = 15;
-  int rows = height / cell_size;
-  int cols = width / cell_size;
+  int rows = HEIGHT / cell_size;
+  int cols = WIDTH / cell_size;
+
   if (!SDL_Init(SDL_INIT_VIDEO))
   {
     printf("Failed to init video\n");
     return 1;
   }
 
+  if (!TTF_Init())
+  {
+    printf("Failed to init Text renderer\n");
+    return 1;
+  }
+
+  TTF_Font *font = TTF_OpenFont("PressStart2P.ttf", 16);
+  if (!font)
+  {
+    printf("Failed to load font: %s\n", SDL_GetError());
+    return 1;
+  }
+
   SDL_Window *window = SDL_CreateWindow("Game Of Life - Conway | C", WIDTH, HEIGHT, SDL_WINDOW_RESIZABLE);
+  SDL_GetWindowSize(window, &width, &height);
 
   SDL_Surface *surface = SDL_GetWindowSurface(window);
 
@@ -256,8 +307,11 @@ int main(int argc, char *argv[])
 
     SDL_ClearSurface(surface, 0, 0, 0, 255);
 
+    SDL_Color green = {0, 255, 0, 255};
+
     // also render saved cells here
     render_cells(surface, cell_size, cells);
+
     DRAW_GRID;
 
     if (is_preview && !is_running)
@@ -265,8 +319,13 @@ int main(int argc, char *argv[])
       DRAW_PREVIEW(mouseX, mouseY, YELLOW_TRANSPARENT);
     }
 
+    draw_text(surface, font, 0, 0, green, "alive_cells: %d", alive_cells(cells));
+
     SDL_UpdateWindowSurface(window);
   }
+
+  TTF_CloseFont(font);
+  TTF_Quit();
 
   SDL_DestroyWindow(window);
   SDL_Quit();
