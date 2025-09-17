@@ -137,7 +137,7 @@ void draw_text(SDL_Surface *target, TTF_Font *font, int x, int y, SDL_Color colo
   SDL_Surface *text_surf = TTF_RenderText_Blended(font, buffer, 0, color);
   if (!text_surf)
   {
-    printf("TTF_RenderUTF8_Blended: %s\n", SDL_GetError());
+    printf("Rendering text: %s\n", SDL_GetError());
     return;
   }
 
